@@ -1,16 +1,20 @@
-import os
-os.environ["QT_QPA_FONTDIR"] = "/usr/share/fonts"
-
 import cv2
 import sys
+import os
+
+# Set environment variables for Qt if needed
+os.environ["QT_QPA_FONTDIR"] = "/usr/share/fonts"
+
 import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 from mediapipe.tasks.python.vision import drawing_utils
 from mediapipe.tasks.python.vision import drawing_styles
 import numpy as np
-import matplotlib.pyplot as plt
 
+# Replace matplotlib with pyqtgraph
+from PySide6 import QtWidgets, QtCore
+import pyqtgraph as pg
 
 def draw_landmarks_on_image(rgb_image, detection_result):
   face_landmarks_list = detection_result.face_landmarks
@@ -21,8 +25,6 @@ def draw_landmarks_on_image(rgb_image, detection_result):
     face_landmarks = face_landmarks_list[idx]
 
     # Draw the face landmarks.
-
-
     drawing_utils.draw_landmarks(
         image=annotated_image,
         landmark_list=face_landmarks,
@@ -50,29 +52,39 @@ def draw_landmarks_on_image(rgb_image, detection_result):
 
   return annotated_image
 
-def plot_face_blendshapes_bar_graph(face_blendshapes):
-  # Extract the face blendshapes category names and scores.
-  face_blendshapes_names = [face_blendshapes_category.category_name for face_blendshapes_category in face_blendshapes]
-  face_blendshapes_scores = [face_blendshapes_category.score for face_blendshapes_category in face_blendshapes]
-  # The blendshapes are ordered in decreasing score value.
-  face_blendshapes_ranks = range(len(face_blendshapes_names))
-
-  fig, ax = plt.subplots(figsize=(12, 12))
-  bar = ax.barh(face_blendshapes_ranks, face_blendshapes_scores, label=[str(x) for x in face_blendshapes_ranks])
-  ax.set_yticks(face_blendshapes_ranks, face_blendshapes_names)
-  ax.invert_yaxis()
-
-  # Label each bar with values
-  for score, patch in zip(face_blendshapes_scores, bar.patches):
-    plt.text(patch.get_x() + patch.get_width(), patch.get_y(), f"{score:.4f}", va="top")
-
-  ax.set_xlabel('Score')
-  ax.set_title("Face Blendshapes")
-  plt.tight_layout()
-  plt.show()
-
+class BlendshapeVisualizer:
+    def __init__(self):
+        self.win = pg.GraphicsLayoutWidget(show=True, title="Face Blendshapes")
+        self.win.resize(800, 600)
+        self.plot = self.win.addPlot(title="Blendshape Scores")
+        
+        self.bar_graph = None
+        self.category_names = []
+        
+    def update(self, face_blendshapes):
+        scores = [b.score for b in face_blendshapes]
+        names = [b.category_name for b in face_blendshapes]
+        
+        if self.bar_graph is None:
+            self.category_names = names
+            self.bar_graph = pg.BarGraphItem(x0=0, y=np.arange(len(scores)), height=0.6, width=scores, brush='b')
+            self.plot.addItem(self.bar_graph)
+            
+            # Setup Y-axis labels
+            ay = self.plot.getAxis('left')
+            ticks = [(i, name) for i, name in enumerate(names)]
+            ay.setTicks([ticks])
+            self.plot.setYRange(-1, len(names))
+            self.plot.setXRange(0, 1)
+            self.plot.invertY(True)
+        else:
+            self.bar_graph.setOpts(width=scores)
 
 def initialize_smile_turner(index=0):
+    # Initialize Qt Application
+    app = QtWidgets.QApplication(sys.argv)
+    visualizer = BlendshapeVisualizer()
+
     window_name = 'Smile Turner - Task API Check'
     cap = cv2.VideoCapture(index)
 
@@ -89,7 +101,7 @@ def initialize_smile_turner(index=0):
     base_options = python.BaseOptions(model_asset_path=model_path)
     options = vision.FaceLandmarkerOptions(
         base_options=base_options,
-        output_face_blendshapes=True, # We will use this for the smile later!
+        output_face_blendshapes=True,
         num_faces=1
     )
     detector = vision.FaceLandmarker.create_from_options(options)
@@ -98,31 +110,22 @@ def initialize_smile_turner(index=0):
 
     try:
         while True:
+            # Process Qt events to keep the graph responsive
+            app.processEvents()
+
             ret, frame = cap.read()
             if not ret: break
 
-            # STEP 2: Convert the frame to MediaPipe's Image format
-            # Convert BGR to RGB first
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
 
-            # STEP 3: Detect landmarks
             detection_result = detector.detect(mp_image)
 
             if detection_result.face_landmarks:
-                # Face landmarks is a list of lists; we take the first face
-                landmarks = detection_result.face_landmarks[0]
                 frame = draw_landmarks_on_image(frame, detection_result)
                 
             if detection_result.face_blendshapes:
-                plot_face_blendshapes_bar_graph(detection_result.face_blendshapes[0])
-                # for category in detection_result.face_blendshapes[0]:
-                #     if category.category_name in ['mouthSmileLeft', 'mouthSmileRight']:
-                #         # This value ranges from 0.0 to 1.0
-                #         if category.score > 0.5: 
-                #              cv2.putText(frame, f"{category.category_name}: {category.score:.2f}", 
-                #                         (50, 80 if 'Left' in category.category_name else 110), 
-                #                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
+                visualizer.update(detection_result.face_blendshapes[0])
 
             cv2.imshow(window_name, frame)
 
@@ -137,6 +140,9 @@ def initialize_smile_turner(index=0):
     finally:
         cap.release()
         cv2.destroyAllWindows()
+
+if __name__ == "__main__":
+    initialize_smile_turner()
 
 if __name__ == "__main__":
     initialize_smile_turner()
