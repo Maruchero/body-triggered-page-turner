@@ -1,0 +1,37 @@
+Phase 1: Environment & Project Scaffolding
+
+    Initialize the workspace: Create your project folder and use uv to initialize the project structure.
+
+    Centralize the environment: Create your virtual environment in your preferred central directory and link it to the project using the VIRTUAL_ENV environment variable.
+
+    Configure VS Code: Set the python.venvPath in your settings and select the remote interpreter to ensure the debugger and IntelliSense are synchronized.
+
+    Declare dependencies: Add opencv-python, mediapipe, and pyautogui to your pyproject.toml via uv to ensure all necessary libraries are locked and installed.
+
+Phase 2: Vision & Intelligence Logic
+
+    Initialize the Camera Feed: Set up the video capture stream to access your laptop's webcam.
+
+    Implement Face Mesh: Integrate the MediaPipe Face Mesh solution to track facial landmarks in real-time.
+
+    Define "The Smile" Mathematically: Identify specific landmark indices (mouth corners vs. mouth center/face width) to calculate a "smile intensity" ratio.
+
+    Establish Detection Thresholds: Determine the numerical value at which a mouth stretch is considered a deliberate "smile" rather than a neutral expression.
+
+    Implement a Debounce/Cooldown Mechanism: Logic to ensure one smile only triggers one keypress, preventing a "runaway" page-turning effect during a long smile.
+
+Phase 3: Operating System Integration
+
+    Map System Input: Configure the script to send a virtual Right Arrow or Page Down keycode to the OS focus.
+
+    Create a Visual Feedback Overlay: Add a simple HUD (Heads-Up Display) on the video preview that highlights the mouth or changes color when the "smile threshold" is crossed.
+
+    Add a Safety "Kill Switch": Implement a simple keyboard listener (like the Esc key) to instantly stop the script if it starts misbehaving during a performance.
+
+Phase 4: Testing & Calibration
+
+    Test Background Execution: Confirm the script can send keystrokes to a background window (e.g., Okular or Xournal++) while the script itself is not in focus.
+
+    Lighting Stress Test: Test the detection in various lighting conditions (simulating a dim organ loft) and adjust the MediaPipe confidence parameters accordingly.
+
+    False-Positive Calibration: Simulate "performance faces"—such as talking, yawning, or concentrated grimacing—to ensure they do not trigger accidental page turns.
