@@ -130,19 +130,19 @@ def initialize_smile_turner(index=0):
             cv2.imshow(window_name, frame)
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
+                visualizer.win.close()
                 break
             try:
                 if cv2.getWindowProperty(window_name, cv2.WND_PROP_VISIBLE) < 1:
+                    visualizer.win.close()
                     break
             except cv2.error:
+                visualizer.win.close()
                 break
                 
     finally:
         cap.release()
         cv2.destroyAllWindows()
-
-if __name__ == "__main__":
-    initialize_smile_turner()
 
 if __name__ == "__main__":
     initialize_smile_turner()
