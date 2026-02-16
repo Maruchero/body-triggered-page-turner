@@ -55,34 +55,38 @@ def draw_landmarks_on_image(rgb_image, detection_result):
 class BlendshapeVisualizer:
     def __init__(self):
         self.win = pg.GraphicsLayoutWidget(show=True, title="Face Blendshapes")
-        self.win.resize(800, 600)
-        self.plot = self.win.addPlot(title="Blendshape Scores")
+        self.win.resize(800, 400)
+        self.plot = self.win.addPlot(title="Mouth Blendshapes Time Series")
+        self.plot.addLegend()
+        self.plot.setYRange(0, 1)
+        self.plot.setLabel('left', 'Score')
+        self.plot.setLabel('bottom', 'Frames (Last 200)')
+
+        self.whitelist = ["mouthLowerDownLeft", "mouthLowerDownRight", "mouthSmileLeft", "mouthSmileRight"]
+        self.history_size = 200
+        self.data = {name: np.zeros(self.history_size) for name in self.whitelist}
+        self.curves = {}
         
-        self.bar_graph = None
-        self.category_names = []
+        # Define some distinct colors for the lines
+        colors = ['r', 'g', 'b', 'y']
+        for i, name in enumerate(self.whitelist):
+            self.curves[name] = self.plot.plot(pen=pg.mkPen(colors[i % len(colors)], width=2), name=name)
         
     def update(self, face_blendshapes):
-        scores = [b.score for b in face_blendshapes]
-        names = [b.category_name for b in face_blendshapes]
-        
-        if self.bar_graph is None:
-            self.category_names = names
-            self.bar_graph = pg.BarGraphItem(x0=0, y=np.arange(len(scores)), height=0.6, width=scores, brush='b')
-            self.plot.addItem(self.bar_graph)
-            
-            # Setup Y-axis labels
-            ay = self.plot.getAxis('left')
-            ticks = [(i, name) for i, name in enumerate(names)]
-            ay.setTicks([ticks])
-            self.plot.setYRange(-1, len(names))
-            self.plot.setXRange(0, 1)
-            self.plot.invertY(True)
-        else:
-            self.bar_graph.setOpts(width=scores)
+        for b in face_blendshapes:
+            if b.category_name in self.whitelist:
+                # Shift data to the left and add the new score at the end
+                self.data[b.category_name] = np.roll(self.data[b.category_name], -1)
+                self.data[b.category_name][-1] = b.score
+                # Update the corresponding curve
+                self.curves[b.category_name].setData(self.data[b.category_name])
 
 def initialize_smile_turner(index=0):
-    # Initialize Qt Application
-    app = QtWidgets.QApplication(sys.argv)
+    # Initialize Qt Application safely
+    app = QtWidgets.QApplication.instance()
+    if app is None:
+        app = QtWidgets.QApplication(sys.argv)
+    
     visualizer = BlendshapeVisualizer()
 
     window_name = 'Smile Turner - Task API Check'
@@ -124,7 +128,7 @@ def initialize_smile_turner(index=0):
             if detection_result.face_landmarks:
                 frame = draw_landmarks_on_image(frame, detection_result)
                 
-            if detection_result.face_blendshapes:
+            if detection_result.face_blendshapes and visualizer.win.isVisible():
                 visualizer.update(detection_result.face_blendshapes[0])
 
             cv2.imshow(window_name, frame)
