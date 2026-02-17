@@ -61,11 +61,11 @@ class BlendshapeVisualizer:
     def __init__(self):
         self.win = pg.GraphicsLayoutWidget(show=True, title="Face Blendshapes")
         self.win.resize(800, 400)
-        self.plot = self.win.addPlot(title="Mouth Blendshapes Time Series")
+        self.plot = self.win.ci.addPlot(title="Mouth Blendshapes Time Series")
         self.plot.addLegend()
-        self.plot.setYRange(0, 1)
+        self.plot.getViewBox().setYRange(0, 1)
         self.plot.setLabel("left", "Score")
-        self.plot.setLabel("bottom", "Frames (Last 200)")
+        self.plot.setLabel("bottom", "Frames (Last 100)")
 
         self.whitelist = [
             "mouthLowerDownLeft",
@@ -73,7 +73,7 @@ class BlendshapeVisualizer:
             "mouthSmileLeft",
             "mouthSmileRight",
         ]
-        self.history_size = 200
+        self.history_size = 100
         self.data = {name: np.zeros(self.history_size) for name in self.whitelist}
         self.curves = {}
 
@@ -88,7 +88,7 @@ class BlendshapeVisualizer:
         for b in face_blendshapes:
             if b.category_name in self.whitelist:
                 # Shift data to the left and add the new score at the end
-                self.data[b.category_name] = np.roll(self.data[b.category_name], -1)
+                self.data[b.category_name][:-1] = self.data[b.category_name][1:]
                 self.data[b.category_name][-1] = b.score
                 # Update the corresponding curve
                 self.curves[b.category_name].setData(self.data[b.category_name])
