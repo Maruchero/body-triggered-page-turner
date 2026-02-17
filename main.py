@@ -12,45 +12,50 @@ from mediapipe.tasks.python.vision import drawing_utils
 from mediapipe.tasks.python.vision import drawing_styles
 import numpy as np
 
-# Replace matplotlib with pyqtgraph
-from PySide6 import QtWidgets, QtCore
+from PySide6 import QtWidgets
 import pyqtgraph as pg
 
+
 def draw_landmarks_on_image(rgb_image, detection_result):
-  face_landmarks_list = detection_result.face_landmarks
-  annotated_image = np.copy(rgb_image)
+    face_landmarks_list = detection_result.face_landmarks
+    annotated_image = np.copy(rgb_image)
 
-  # Loop through the detected faces to visualize.
-  for idx in range(len(face_landmarks_list)):
-    face_landmarks = face_landmarks_list[idx]
+    # Loop through the detected faces to visualize.
+    for idx in range(len(face_landmarks_list)):
+        face_landmarks = face_landmarks_list[idx]
 
-    # Draw the face landmarks.
-    drawing_utils.draw_landmarks(
-        image=annotated_image,
-        landmark_list=face_landmarks,
-        connections=vision.FaceLandmarksConnections.FACE_LANDMARKS_TESSELATION,
-        landmark_drawing_spec=None,
-        connection_drawing_spec=drawing_styles.get_default_face_mesh_tesselation_style())
-    drawing_utils.draw_landmarks(
-        image=annotated_image,
-        landmark_list=face_landmarks,
-        connections=vision.FaceLandmarksConnections.FACE_LANDMARKS_CONTOURS,
-        landmark_drawing_spec=None,
-        connection_drawing_spec=drawing_styles.get_default_face_mesh_contours_style())
-    drawing_utils.draw_landmarks(
-        image=annotated_image,
-        landmark_list=face_landmarks,
-        connections=vision.FaceLandmarksConnections.FACE_LANDMARKS_LEFT_IRIS,
-          landmark_drawing_spec=None,
-          connection_drawing_spec=drawing_styles.get_default_face_mesh_iris_connections_style())
-    drawing_utils.draw_landmarks(
-        image=annotated_image,
-        landmark_list=face_landmarks,
-        connections=vision.FaceLandmarksConnections.FACE_LANDMARKS_RIGHT_IRIS,
-          landmark_drawing_spec=None,
-          connection_drawing_spec=drawing_styles.get_default_face_mesh_iris_connections_style())
+        # Draw the face landmarks.
+        drawing_utils.draw_landmarks(
+            image=annotated_image,
+            landmark_list=face_landmarks,
+            connections=vision.FaceLandmarksConnections.FACE_LANDMARKS_TESSELATION,
+            landmark_drawing_spec=None,
+            connection_drawing_spec=drawing_styles.get_default_face_mesh_tesselation_style(),
+        )
+        drawing_utils.draw_landmarks(
+            image=annotated_image,
+            landmark_list=face_landmarks,
+            connections=vision.FaceLandmarksConnections.FACE_LANDMARKS_CONTOURS,
+            landmark_drawing_spec=None,
+            connection_drawing_spec=drawing_styles.get_default_face_mesh_contours_style(),
+        )
+        drawing_utils.draw_landmarks(
+            image=annotated_image,
+            landmark_list=face_landmarks,
+            connections=vision.FaceLandmarksConnections.FACE_LANDMARKS_LEFT_IRIS,
+            landmark_drawing_spec=None,
+            connection_drawing_spec=drawing_styles.get_default_face_mesh_iris_connections_style(),
+        )
+        drawing_utils.draw_landmarks(
+            image=annotated_image,
+            landmark_list=face_landmarks,
+            connections=vision.FaceLandmarksConnections.FACE_LANDMARKS_RIGHT_IRIS,
+            landmark_drawing_spec=None,
+            connection_drawing_spec=drawing_styles.get_default_face_mesh_iris_connections_style(),
+        )
 
-  return annotated_image
+    return annotated_image
+
 
 class BlendshapeVisualizer:
     def __init__(self):
@@ -59,19 +64,26 @@ class BlendshapeVisualizer:
         self.plot = self.win.addPlot(title="Mouth Blendshapes Time Series")
         self.plot.addLegend()
         self.plot.setYRange(0, 1)
-        self.plot.setLabel('left', 'Score')
-        self.plot.setLabel('bottom', 'Frames (Last 200)')
+        self.plot.setLabel("left", "Score")
+        self.plot.setLabel("bottom", "Frames (Last 200)")
 
-        self.whitelist = ["mouthLowerDownLeft", "mouthLowerDownRight", "mouthSmileLeft", "mouthSmileRight"]
+        self.whitelist = [
+            "mouthLowerDownLeft",
+            "mouthLowerDownRight",
+            "mouthSmileLeft",
+            "mouthSmileRight",
+        ]
         self.history_size = 200
         self.data = {name: np.zeros(self.history_size) for name in self.whitelist}
         self.curves = {}
-        
+
         # Define some distinct colors for the lines
-        colors = ['r', 'g', 'b', 'y']
+        colors = ["r", "g", "b", "y"]
         for i, name in enumerate(self.whitelist):
-            self.curves[name] = self.plot.plot(pen=pg.mkPen(colors[i % len(colors)], width=2), name=name)
-        
+            self.curves[name] = self.plot.plot(
+                pen=pg.mkPen(colors[i % len(colors)], width=2), name=name
+            )
+
     def update(self, face_blendshapes):
         for b in face_blendshapes:
             if b.category_name in self.whitelist:
@@ -81,15 +93,16 @@ class BlendshapeVisualizer:
                 # Update the corresponding curve
                 self.curves[b.category_name].setData(self.data[b.category_name])
 
+
 def initialize_smile_turner(index=0):
     # Initialize Qt Application safely
     app = QtWidgets.QApplication.instance()
     if app is None:
         app = QtWidgets.QApplication(sys.argv)
-    
+
     visualizer = BlendshapeVisualizer()
 
-    window_name = 'Smile Turner - Task API Check'
+    window_name = "Smile Turner - Task API Check"
     cap = cv2.VideoCapture(index)
 
     if not cap.isOpened():
@@ -97,16 +110,14 @@ def initialize_smile_turner(index=0):
         sys.exit(1)
 
     # STEP 1: Create the FaceLandmarker detector
-    model_path = 'face_landmarker.task'
+    model_path = "face_landmarker.task"
     if not os.path.exists(model_path):
         print(f"Error: Model file '{model_path}' not found in the directory.")
         sys.exit(1)
 
     base_options = python.BaseOptions(model_asset_path=model_path)
     options = vision.FaceLandmarkerOptions(
-        base_options=base_options,
-        output_face_blendshapes=True,
-        num_faces=1
+        base_options=base_options, output_face_blendshapes=True, num_faces=1
     )
     detector = vision.FaceLandmarker.create_from_options(options)
 
@@ -118,7 +129,8 @@ def initialize_smile_turner(index=0):
             app.processEvents()
 
             ret, frame = cap.read()
-            if not ret: break
+            if not ret:
+                break
 
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
@@ -127,13 +139,13 @@ def initialize_smile_turner(index=0):
 
             if detection_result.face_landmarks:
                 frame = draw_landmarks_on_image(frame, detection_result)
-                
+
             if detection_result.face_blendshapes and visualizer.win.isVisible():
                 visualizer.update(detection_result.face_blendshapes[0])
 
             cv2.imshow(window_name, frame)
 
-            if cv2.waitKey(1) & 0xFF == ord('q'):
+            if cv2.waitKey(1) & 0xFF == ord("q"):
                 visualizer.win.close()
                 break
             try:
@@ -143,10 +155,11 @@ def initialize_smile_turner(index=0):
             except cv2.error:
                 visualizer.win.close()
                 break
-                
+
     finally:
         cap.release()
         cv2.destroyAllWindows()
+
 
 if __name__ == "__main__":
     initialize_smile_turner()
