@@ -1,6 +1,7 @@
 import cv2
 import sys
 import os
+import time # Added for keypress cooldown
 
 # Set environment variables for Qt if needed
 os.environ["QT_QPA_FONTDIR"] = "/usr/share/fonts"
@@ -14,6 +15,7 @@ import numpy as np
 
 from PySide6 import QtWidgets
 import pyqtgraph as pg
+import pyautogui # Added for simulating key presses
 
 
 def draw_landmarks_on_image(rgb_image, detection_result):
@@ -65,7 +67,7 @@ class BlendshapeVisualizer:
         self.plot.addLegend()
         self.plot.getViewBox().setYRange(0, 1)
         self.plot.setLabel("left", "Score")
-        self.plot.setLabel("bottom", "Frames (Last 100)")
+        self.plot.setLabel("bottom", "Frames (Last 200)")
 
         self.whitelist = [
             "mouthLowerDownLeft",
@@ -73,7 +75,7 @@ class BlendshapeVisualizer:
             "mouthSmileLeft",
             "mouthSmileRight",
         ]
-        self.history_size = 100
+        self.history_size = 200
         self.data = {name: np.zeros(self.history_size) for name in self.whitelist}
         self.curves = {}
 
@@ -83,6 +85,11 @@ class BlendshapeVisualizer:
             self.curves[name] = self.plot.plot(
                 pen=pg.mkPen(colors[i % len(colors)], width=2), name=name
             )
+        
+        # Initialize keypress cooldown
+        self.last_keypress_time = 0
+        self.keypress_cooldown = 1 # seconds
+
 
     def update(self, face_blendshapes):
         for b in face_blendshapes:
@@ -92,6 +99,15 @@ class BlendshapeVisualizer:
                 self.data[b.category_name][-1] = b.score
                 # Update the corresponding curve
                 self.curves[b.category_name].setData(self.data[b.category_name])
+            
+        # Calculate overall smile score as average of left and right
+        smile_score = (self.data["mouthSmileLeft"][-1] + self.data["mouthSmileRight"][-1]) / 2.0
+
+        # Check for keypress condition with cooldown
+        if smile_score > 0.85 and (time.time() - self.last_keypress_time > self.keypress_cooldown):
+            print("[DEBUG] Smile score exceeded threshold: {:.2f}".format(smile_score))
+            pyautogui.press('right')
+            self.last_keypress_time = time.time()
 
 
 def initialize_smile_turner(index=0):
@@ -163,3 +179,4 @@ def initialize_smile_turner(index=0):
 
 if __name__ == "__main__":
     initialize_smile_turner()
+
